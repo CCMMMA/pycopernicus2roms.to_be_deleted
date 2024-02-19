@@ -1,2 +1,6 @@
 netCDF4==1.6.5
 scipy==1.12.0
+matplotlib==3.8.3
+basemap==1.4.1
+basemap-data-hires==1.3.2
+gstatsim==1.0.6
