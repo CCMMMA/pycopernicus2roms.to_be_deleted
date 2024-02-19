@@ -41,6 +41,11 @@ def do_it():
     dataset_bry.close()
     dataset_ini.close()
 
+    import matplotlib.pyplot as plt
+
+    cs = plt.contour(var_zos_dst)
+    plt.show()
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
