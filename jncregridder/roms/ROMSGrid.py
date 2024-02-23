@@ -78,13 +78,11 @@ class ROMSGrid:
         self.MASKU = self.__load__('mask_u')
         self.MASKV = self.__load__('mask_v')
         self.Z = self.__load__('z')
+        self.TCLINE = self.__load__('Tcline')
 
     def __load__(self, variable_name):
         try:
             if variable_name == "z":
-                # TODO: change hc in domain grid
-                self.HC = 5
-
                 # Reshape s_rho and cs_r for broadcasting
                 s_rho_reshaped = self.s_rho[:, np.newaxis, np.newaxis]
                 cs_r_reshaped = self.cs_r[:, np.newaxis, np.newaxis]

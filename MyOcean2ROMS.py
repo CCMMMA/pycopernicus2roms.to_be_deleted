@@ -1,9 +1,19 @@
 import os
 from datetime import datetime, timedelta
+import ephem
 
 from jncregridder.data.copernicus.Copernicus import CopernicusTem, CopernicusSal, CopernicusSSH, CopernicusCur
+from jncregridder.roms.ROMSBoundary import ROMSBoundary
 from jncregridder.roms.ROMSGrid import ROMSGrid
+from jncregridder.roms.ROMSInit import ROMSInit
 from jncregridder.util.Interpolator import BilinearInterpolator, BilinearInterpolator3D
+
+
+def calculate_julian_date(year, month, day):
+    date = ephem.Date((year, month, day))
+    julian_date = ephem.julian_date(date)
+
+    return julian_date
 
 
 def getModSimStartDate(ncepDate):
@@ -11,16 +21,12 @@ def getModSimStartDate(ncepDate):
     month = int(ncepDate[4:6])
     day = int(ncepDate[6:8])
 
-    # Create a datetime object for the simulation start date
-    sim_start_date = datetime(year, month, day)
+    dSimStartDate = calculate_julian_date(year, month, day)
+    dModOffset = calculate_julian_date(1968, 5, 23)
 
-    # Define the simulation start date for the model
-    model_start_date = datetime(1968, 5, 23)
+    dModSimStartDate = dSimStartDate - dModOffset
 
-    # Calculate the timedelta between the simulation start date and the model start date
-    offset = sim_start_date - model_start_date
-
-    return model_start_date + offset
+    return dModSimStartDate
 
 
 class MyOcean2ROMS:
@@ -110,13 +116,27 @@ class MyOcean2ROMS:
         LONXY = dataCur.LON
         myOceanZ = dataCur.Z
 
+        # Set the number of forcing time steps
         forcingTimeSteps = len(dataCur.TIME)
 
-        # TODO: add ROMS INIT file
-
         oceanTime = []
+        scrumTime = []
         for t in range(forcingTimeSteps):
-            oceanTime.append((getModSimStartDate(ncepDate) + timedelta(days=t)).strftime("%Y-%m-%d"))
+            # Set the value of each ocean time as delta form the simulation starting date
+            oceanTime.append((getModSimStartDate(ncepDate) + t))
+            # Set the scrum time
+            scrumTime.append(t * 86400)
+
+        # Instantiate a ROMS init file
+        romsInit = ROMSInit(self.romsInitPath, romsGrid, forcingTimeSteps)
+        romsInit.OCEAN_TIME = oceanTime
+        romsInit.SCRUM_TIME = scrumTime
+        romsInit.make()
+
+        # Instantiate a ROMS boundary file
+        romsBoundary = ROMSBoundary(self.romsBoundaryPath, romsGrid, forcingTimeSteps)
+        romsBoundary.OCEAN_TIME = oceanTime
+        romsBoundary.make()
 
         for t in range(forcingTimeSteps):
             print(f"Time: {t} {oceanTime[t]}")
@@ -162,15 +182,41 @@ class MyOcean2ROMS:
             print("Interpolating SAL")
             SAL_ROMS = interpolator3DRho.interp(valuesSal, dataSal.FillValue)
 
-            # TODO: Add saving to netcdf file
+            # TODO: calculate UBAR and VBAR
+            UBAR = None
+            VBAR = None
+
+            print(f"Time: {t} Saving init file...")
+            romsInit.SALT = SAL_ROMS
+            romsInit.TEMP = TEM_ROMS
+            romsInit.ZETA = SSH_ROMS
+            romsInit.UBAR = UBAR
+            romsInit.VBAR = VBAR
+            romsInit.U = U_ROMS
+            romsInit.V = V_ROMS
+            romsInit.write(t)
+
+            print(f"Time: {t} Saving bry file...")
+            romsBoundary.SALT = SAL_ROMS
+            romsBoundary.TEMP = TEM_ROMS
+            romsBoundary.ZETA = SSH_ROMS
+            romsBoundary.UBAR = UBAR
+            romsBoundary.VBAR = VBAR
+            romsBoundary.U = U_ROMS
+            romsBoundary.V = V_ROMS
+            # TODO: you can save bry only when vertical interpolation has been added
+            # romsBoundary.write(t)
+
+        romsInit.close()
+        romsBoundary.close()
 
 
 def main():
     gridParh = "data/Campania_new.nc"
     dataPath = "data"
     ncepDate = "20240215"
-    initPath = ""
-    boundaryPath = ""
+    initPath = "data/ini-d03.nc"
+    boundaryPath = "data/bry-d03.nc"
 
     MyOcean2ROMS(gridParh, dataPath, ncepDate, initPath, boundaryPath)
 

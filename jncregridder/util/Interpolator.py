@@ -65,15 +65,18 @@ class BilinearInterpolator3D(Interpolator):
             # print("srcDEPTH:" + str(self.srcZ[k][0][0]))
             k += 1
         self.srcLevs = k + 1
-        print("srcLevs:", str(self.srcLevs))
+        # print("srcLevs:", str(self.srcLevs))
 
     def interp(self, values, fillValue):
+        # TODO: add vertical interpolation
+        """
         tSrc = []
         for k in range(self.srcLevs):
             print(f"<k={k} depth:{self.srcZ[k][0][0]:.2f}")
             tSrc.append(super().interp(values[k], fillValue))
             print(" >")
 
-        # TODO: add vertical interpolation
-
         return tSrc
+        """
+
+        return None
