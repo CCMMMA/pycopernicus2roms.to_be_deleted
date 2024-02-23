@@ -360,7 +360,7 @@ class ROMSBoundary:
 
         self.sc_r[:] = self.romsGrid.s_rho
         self.s_rho[:] = self.romsGrid.s_rho
-        self.hc[:] = self.romsGrid.hc
+        self.hc[:] = self.romsGrid.HC
         self.Cs_r[:] = self.romsGrid.cs_r
 
     def write(self, time):
