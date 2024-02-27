@@ -1,6 +1,7 @@
 from scipy.interpolate import griddata, interp1d
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
+from numba import njit
 import numpy as np
 
 
@@ -30,10 +31,30 @@ def interp(srcLAT, srcLON, srcMASK, values, dstLAT, dstLON, fillValue):
     return valuesInterp
 
 
-def parallel_interp_horizontal(k, srcLAT, srcLON, srcZ, srcMASK, values, dstLAT, dstLON, fillValue):
+def interp_horizontal(k, srcLAT, srcLON, srcZ, srcMASK, values, dstLAT, dstLON, fillValue):
     print(f"<k={k} depth:{srcZ[k][0][0]:.2f}>")
     result = interp(srcLAT, srcLON, srcMASK, values[k], dstLAT, dstLON, fillValue)
+    # result = np.random.rand(len(dstLAT), len(dstLAT[0]))
     return result
+
+
+@njit
+def interp_vertical(dstSNDim, dstWEDim, srcZ, tSrc, sigma, tDst):
+    """
+    depthCopernicus = srcZ[:, 0, 0].filled(np.nan)
+    srcCopernicus = tSrc[:, j, i]
+    interpV = interp1d(depthCopernicus, srcCopernicus, kind='linear', fill_value="extrapolate")
+    depthSigma = sigma[:, j, i].filled(np.nan)
+    dstSigma = interpV(depthSigma)
+    tDst[:, j, i] = dstSigma
+    """
+    for j in range(dstSNDim):
+        for i in range(dstWEDim):
+            depthCopernicus = srcZ[:, 0, 0]
+            srcCopernicus = tSrc[:, j, i]
+            depthSigma = sigma[:, j, i]
+            dstSigma = np.interp(depthSigma, depthCopernicus, srcCopernicus)
+            tDst[:, j, i] = dstSigma
 
 
 class Interpolator:
@@ -82,20 +103,14 @@ class BilinearInterpolator3D(Interpolator):
         num_processors = multiprocessing.cpu_count()
         print(f"Number of processes used: {num_processors}")
         with ProcessPoolExecutor(max_workers=num_processors) as executor:
-            futures = [executor.submit(parallel_interp_horizontal, k, self.srcLAT, self.srcLON, self.srcZ, self.srcMASK,
+            futures = [executor.submit(interp_horizontal, k, self.srcLAT, self.srcLON, self.srcZ, self.srcMASK,
                                        values, self.dstLAT, self.dstLON, fillValue) for k in range(self.srcLevs)]
 
             for k, future in enumerate(futures):
                 tSrc[k] = future.result()
 
         print("Interpolating vertically...")
-        for j in range(self.dstSNDim):
-            for i in range(self.dstWEDim):
-                depthCopernicus = self.srcZ[:, 0, 0].filled(np.nan)
-                srcCopernicus = tSrc[:, j, i]
-                interp = interp1d(depthCopernicus, srcCopernicus, kind='linear', fill_value="extrapolate")
-                depthSigma = self.sigma[:, j, i].filled(np.nan)
-                dstSigma = interp(depthSigma)
-                tDst[:, j, i] = dstSigma
+        interp_vertical(self.dstSNDim, self.dstWEDim, self.srcZ.filled(np.nan), tSrc, self.sigma.filled(np.nan), tDst)
 
         return tDst
+
