@@ -1,7 +1,39 @@
 from scipy.interpolate import griddata, interp1d
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 import numpy as np
+
+
+def interp(srcLAT, srcLON, srcMASK, values, dstLAT, dstLON, fillValue):
+    lon_src_mesh, lat_src_mesh = np.meshgrid(srcLON, srcLAT)
+
+    valuesInterp = griddata(
+        (lat_src_mesh.flatten(), lon_src_mesh.flatten()),
+        values.filled(fill_value=np.nan).flatten(),
+        (dstLAT, dstLON),
+        fill_value=fillValue,
+        method="linear"
+    )
+
+    indices = np.where(srcMASK == 0)
+    valuesInterp[indices] = 1e37
+
+    rows, cols = np.where(~np.isnan(valuesInterp) & (valuesInterp != 1e37))
+    values = valuesInterp[rows, cols]
+    interp_rows, interp_cols = np.where(np.isnan(valuesInterp))
+    interpolated_values = griddata((rows, cols), values, (interp_rows, interp_cols), method='nearest')
+    valuesInterp[np.isnan(valuesInterp)] = interpolated_values
+
+    indices = np.where(valuesInterp == 1e37)
+    valuesInterp[indices] = np.nan
+
+    return valuesInterp
+
+
+def parallel_interp_horizontal(k, srcLAT, srcLON, srcZ, srcMASK, values, dstLAT, dstLON, fillValue):
+    print(f"<k={k} depth:{srcZ[k][0][0]:.2f}>")
+    result = interp(srcLAT, srcLON, srcMASK, values[k], dstLAT, dstLON, fillValue)
+    return result
 
 
 class Interpolator:
@@ -16,29 +48,8 @@ class Interpolator:
         self.dstWEDim = len(dstLAT[0])
 
     def interp(self, values, fillValue):
-        lon_src_mesh, lat_src_mesh = np.meshgrid(self.srcLON, self.srcLAT)
-
-        valuesInterp = griddata(
-            (lat_src_mesh.flatten(), lon_src_mesh.flatten()),
-            values.filled(fill_value=np.nan).flatten(),
-            (self.dstLAT, self.dstLON),
-            fill_value=fillValue,
-            method="linear"
-        )
-
-        indices = np.where(self.srcMASK == 0)
-        valuesInterp[indices] = 1e37
-
-        rows, cols = np.where(~np.isnan(valuesInterp) & (valuesInterp != 1e37))
-        values = valuesInterp[rows, cols]
-        interp_rows, interp_cols = np.where(np.isnan(valuesInterp))
-        interpolated_values = griddata((rows, cols), values, (interp_rows, interp_cols), method='nearest')
-        valuesInterp[np.isnan(valuesInterp)] = interpolated_values
-
-        indices = np.where(valuesInterp == 1e37)
-        valuesInterp[indices] = np.nan
-
-        return valuesInterp
+        interp_values = interp(self.srcLAT, self.srcLON, self.srcMASK, values, self.dstLAT, self.dstLON, fillValue)
+        return interp_values
 
 
 class BilinearInterpolator(Interpolator):
@@ -68,16 +79,11 @@ class BilinearInterpolator3D(Interpolator):
         tSrc = np.empty((self.srcLevs, self.dstSNDim, self.dstWEDim))
         tDst = np.empty((self.dstLevs, self.dstSNDim, self.dstWEDim))
 
-        def parallel_interp(k):
-            print(f"<k={k} depth:{self.srcZ[k][0][0]:.2f}>")
-            result = super(type(self), self).interp(values[k], fillValue)
-            # result = np.random.rand(self.dstSNDim, self.dstWEDim)  # JUST FOR TESTING
-            return result
-
         num_processors = multiprocessing.cpu_count()
-        print(f"Number of threads/processes used: {num_processors}")
-        with ThreadPoolExecutor(max_workers=num_processors) as executor:
-            futures = [executor.submit(parallel_interp, k) for k in range(self.srcLevs)]
+        print(f"Number of processes used: {num_processors}")
+        with ProcessPoolExecutor(max_workers=num_processors) as executor:
+            futures = [executor.submit(parallel_interp_horizontal, k, self.srcLAT, self.srcLON, self.srcZ, self.srcMASK,
+                                       values, self.dstLAT, self.dstLON, fillValue) for k in range(self.srcLevs)]
 
             for k, future in enumerate(futures):
                 tSrc[k] = future.result()
