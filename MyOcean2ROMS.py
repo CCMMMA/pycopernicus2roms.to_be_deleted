@@ -81,7 +81,7 @@ class MyOcean2ROMS:
         LONRHO = romsGrid.LONRHO
 
         # Z at rho/sigma pints
-        romsZ = romsGrid.Z
+        romsZ = romsGrid.H
 
         # LAT,LON at u points
         LATU = romsGrid.LATU
@@ -104,7 +104,7 @@ class MyOcean2ROMS:
         print("LATV:", LATV.shape)
         print("LONV:", LONV.shape)
         print("ANGLE:", ANGLE.shape)
-        print("ZETA:", romsZ.shape)
+        print("H:", romsZ.shape)
 
         dataTem = CopernicusTem(self.myOceanPathTem)
         dataSal = CopernicusSal(self.myOceanPathSal)
@@ -164,20 +164,18 @@ class MyOcean2ROMS:
             SSH_ROMS = bilinearInterpolatorRho.interp(valuesSSH, dataSSH.FillValue)
 
             # Create a 3D bilinear interpolator on Rho points
-            interpolator3DRho = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKRHO)
+            interpolator3DRho = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKRHO, romsGrid)
             # Create a 3D bilinear interpolator on U points
-            interpolator3DU = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKU)
+            interpolator3DU = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKU, romsGrid)
             # Create a 3D bilinear interpolator on V points
-            interpolator3DV = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKV)
+            interpolator3DV = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKV, romsGrid)
 
+            """
             print("Interpolating U")
             U_ROMS = interpolator3DU.interp(valuesU, dataCur.FillValue)
 
             print("Interpolating V")
             V_ROMS = interpolator3DV.interp(valuesV, dataCur.FillValue)
-
-            print("Interpolating TEMP")
-            TEM_ROMS = interpolator3DRho.interp(valuesTem, dataTem.FillValue)
 
             print("Interpolating SAL")
             SAL_ROMS = interpolator3DRho.interp(valuesSal, dataSal.FillValue)
@@ -185,25 +183,29 @@ class MyOcean2ROMS:
             # TODO: calculate UBAR and VBAR
             UBAR = None
             VBAR = None
+            """
+
+            print("Interpolating TEMP")
+            TEM_ROMS = interpolator3DRho.interp(valuesTem, dataTem.FillValue)
 
             print(f"Time: {t} Saving init file...")
-            romsInit.SALT = SAL_ROMS
+            # romsInit.SALT = SAL_ROMS
             romsInit.TEMP = TEM_ROMS
             romsInit.ZETA = SSH_ROMS
-            romsInit.UBAR = UBAR
-            romsInit.VBAR = VBAR
-            romsInit.U = U_ROMS
-            romsInit.V = V_ROMS
+            # romsInit.UBAR = UBAR
+            # romsInit.VBAR = VBAR
+            # romsInit.U = U_ROMS
+            # romsInit.V = V_ROMS
             romsInit.write(t)
 
             print(f"Time: {t} Saving bry file...")
-            romsBoundary.SALT = SAL_ROMS
-            romsBoundary.TEMP = TEM_ROMS
-            romsBoundary.ZETA = SSH_ROMS
-            romsBoundary.UBAR = UBAR
-            romsBoundary.VBAR = VBAR
-            romsBoundary.U = U_ROMS
-            romsBoundary.V = V_ROMS
+            # romsBoundary.SALT = SAL_ROMS
+            # romsBoundary.TEMP = TEM_ROMS
+            # romsBoundary.ZETA = SSH_ROMS
+            # romsBoundary.UBAR = UBAR
+            # romsBoundary.VBAR = VBAR
+            # romsBoundary.U = U_ROMS
+            # romsBoundary.V = V_ROMS
             # TODO: you can save bry only when vertical interpolation has been added
             # romsBoundary.write(t)
 

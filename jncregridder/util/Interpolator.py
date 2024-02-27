@@ -1,4 +1,6 @@
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, interp1d
+from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
 import numpy as np
 
 
@@ -45,38 +47,51 @@ class BilinearInterpolator(Interpolator):
 
 
 class BilinearInterpolator3D(Interpolator):
-    def __init__(self, srcLAT, srcLON, srcZ, dstLAT, dstLON, dstZ, srcMASK):
+    def __init__(self, srcLAT, srcLON, srcZ, dstLAT, dstLON, dstZ, srcMASK, romsGrid):
         super().__init__(srcLAT, srcLON, dstLAT, dstLON, srcMASK)
         self.srcZ = srcZ
         self.dstZ = dstZ
+        self.romsGrid = romsGrid
+
         self.srcLevs = 0
-        self.dstMinZ = 0
-        self.weight3Ds = None
+        self.dstLevs = 0
+        self.sigma = None
 
         self.prepare()
 
     def prepare(self):
-        dstLevs = len(self.dstZ)
-        self.dstMinZ = np.min(self.dstZ)
-        # print("dstMinZ:" + str(self.dstMinZ))
-
-        k = 0
-        while k < len(self.srcZ) and abs(self.srcZ[k][0][0] <= abs(self.dstMinZ)):
-            # print("srcDEPTH:" + str(self.srcZ[k][0][0]))
-            k += 1
-        self.srcLevs = k + 1
-        # print("srcLevs:", str(self.srcLevs))
+        self.srcLevs = len(self.srcZ)
+        self.dstLevs = len(self.romsGrid.s_rho)
+        self.sigma = abs(self.dstZ * self.romsGrid.s_rho[:, np.newaxis, np.newaxis])
+        # self.sigma = self.sigma[::-1]
 
     def interp(self, values, fillValue):
-        # TODO: add vertical interpolation
-        """
-        tSrc = []
-        for k in range(self.srcLevs):
+        tSrc = np.empty((self.srcLevs, len(self.dstZ), len(self.dstZ[0])))
+        tDst = np.empty((self.dstLevs, len(self.dstZ), len(self.dstZ[0])))
+
+        def parallel_interp(k):
             print(f"<k={k} depth:{self.srcZ[k][0][0]:.2f}")
-            tSrc.append(super().interp(values[k], fillValue))
+            result = super(type(self), self).interp(values[k], fillValue)
+            # result = np.random.rand(1488, 2643) # JUST FOR TESTING
             print(" >")
+            return result
 
-        return tSrc
-        """
+        num_processors = multiprocessing.cpu_count()
+        print(f"Number of threads/processes used: {num_processors}")
+        with ThreadPoolExecutor(max_workers=num_processors) as executor:
+            futures = [executor.submit(parallel_interp, k) for k in range(self.srcLevs)]
 
-        return None
+            for k, future in enumerate(futures):
+                tSrc[k] = future.result()
+
+        print("Interpolating vertically...")
+        for j in range(len(self.dstZ)):
+            for i in range(len(self.dstZ[0])):
+                depthCopernicus = self.srcZ[:, 0, 0].filled(np.nan)
+                srcCopernicus = tSrc[:, j, i]
+                interp = interp1d(depthCopernicus, srcCopernicus, kind='linear', fill_value="extrapolate")
+                depthSigma = self.sigma[:, j, i].filled(np.nan)
+                dstSigma = interp(depthSigma)
+                tDst[:, j, i] = dstSigma
+
+        return tDst
