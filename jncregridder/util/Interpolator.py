@@ -83,8 +83,8 @@ class BilinearInterpolator3D(Interpolator):
                 tSrc[k] = future.result()
 
         print("Interpolating vertically...")
-        for j in range(len(self.dstZ)):
-            for i in range(len(self.dstZ[0])):
+        for j in range(self.dstSNDim):
+            for i in range(self.dstWEDim):
                 depthCopernicus = self.srcZ[:, 0, 0].filled(np.nan)
                 srcCopernicus = tSrc[:, j, i]
                 interp = interp1d(depthCopernicus, srcCopernicus, kind='linear', fill_value="extrapolate")
