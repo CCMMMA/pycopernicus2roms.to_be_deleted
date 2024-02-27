@@ -384,20 +384,22 @@ class ROMSBoundary:
         self.temp_south[time] = self.TEMP[:, 0, :]
         self.temp_north[time] = self.TEMP[:, -1, :]
 
-        self.zeta_west[time] = self.ZETA[:, :, 0]
-        self.zeta_east[time] = self.ZETA[:, :, -1]
-        self.zeta_south[time] = self.ZETA[:, 0, :]
-        self.zeta_north[time] = self.ZETA[:, -1, :]
+        self.zeta_west[time] = self.ZETA[:, 0]
+        self.zeta_east[time] = self.ZETA[:, -1]
+        self.zeta_south[time] = self.ZETA[0, :]
+        self.zeta_north[time] = self.ZETA[-1, :]
 
-        self.ubar_west[time] = self.UBAR[:, :, 0]
-        self.ubar_east[time] = self.UBAR[:, :, -1]
-        self.ubar_south[time] = self.UBAR[:, 0, :]
-        self.ubar_north[time] = self.UBAR[:, -1, :]
+        """
+        self.ubar_west[time] = self.UBAR[:, 0]
+        self.ubar_east[time] = self.UBAR[:, -1]
+        self.ubar_south[time] = self.UBAR[0, :]
+        self.ubar_north[time] = self.UBAR[-1, :]
 
-        self.vbar_west[time] = self.VBAR[:, :, 0]
-        self.vbar_east[time] = self.VBAR[:, :, -1]
-        self.vbar_south[time] = self.VBAR[:, 0, :]
-        self.vbar_north[time] = self.VBAR[:, -1, :]
+        self.vbar_west[time] = self.VBAR[:, 0]
+        self.vbar_east[time] = self.VBAR[:, -1]
+        self.vbar_south[time] = self.VBAR[0, :]
+        self.vbar_north[time] = self.VBAR[-1, :]
+        """
 
     def close(self):
         if self.ncfWritable:

@@ -63,17 +63,15 @@ class BilinearInterpolator3D(Interpolator):
         self.srcLevs = len(self.srcZ)
         self.dstLevs = len(self.romsGrid.s_rho)
         self.sigma = abs(self.dstZ * self.romsGrid.s_rho[:, np.newaxis, np.newaxis])
-        # self.sigma = self.sigma[::-1]
 
     def interp(self, values, fillValue):
-        tSrc = np.empty((self.srcLevs, len(self.dstZ), len(self.dstZ[0])))
-        tDst = np.empty((self.dstLevs, len(self.dstZ), len(self.dstZ[0])))
+        tSrc = np.empty((self.srcLevs, self.dstSNDim, self.dstWEDim))
+        tDst = np.empty((self.dstLevs, self.dstSNDim, self.dstWEDim))
 
         def parallel_interp(k):
-            print(f"<k={k} depth:{self.srcZ[k][0][0]:.2f}")
+            print(f"<k={k} depth:{self.srcZ[k][0][0]:.2f}>")
             result = super(type(self), self).interp(values[k], fillValue)
-            # result = np.random.rand(1488, 2643) # JUST FOR TESTING
-            print(" >")
+            # result = np.random.rand(self.dstSNDim, self.dstWEDim)  # JUST FOR TESTING
             return result
 
         num_processors = multiprocessing.cpu_count()

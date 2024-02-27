@@ -1,5 +1,4 @@
 import os
-from datetime import datetime, timedelta
 import ephem
 
 from jncregridder.data.copernicus.Copernicus import CopernicusTem, CopernicusSal, CopernicusSSH, CopernicusCur
@@ -166,48 +165,43 @@ class MyOcean2ROMS:
             # Create a 3D bilinear interpolator on Rho points
             interpolator3DRho = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKRHO, romsGrid)
             # Create a 3D bilinear interpolator on U points
-            interpolator3DU = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKU, romsGrid)
+            interpolator3DU = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATU, LONU, romsZ, MASKU, romsGrid)
             # Create a 3D bilinear interpolator on V points
-            interpolator3DV = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATRHO, LONRHO, romsZ, MASKV, romsGrid)
+            interpolator3DV = BilinearInterpolator3D(LATXY, LONXY, myOceanZ, LATV, LONV, romsZ, MASKV, romsGrid)
 
-            """
+            print("Interpolating SAL")
+            SAL_ROMS = interpolator3DRho.interp(valuesSal, dataSal.FillValue)
+
+            print("Interpolating TEMP")
+            TEM_ROMS = interpolator3DRho.interp(valuesTem, dataTem.FillValue)
+
             print("Interpolating U")
             U_ROMS = interpolator3DU.interp(valuesU, dataCur.FillValue)
 
             print("Interpolating V")
             V_ROMS = interpolator3DV.interp(valuesV, dataCur.FillValue)
 
-            print("Interpolating SAL")
-            SAL_ROMS = interpolator3DRho.interp(valuesSal, dataSal.FillValue)
-
-            # TODO: calculate UBAR and VBAR
-            UBAR = None
-            VBAR = None
-            """
-
-            print("Interpolating TEMP")
-            TEM_ROMS = interpolator3DRho.interp(valuesTem, dataTem.FillValue)
+            # TODO: compute UBAR and VBAR
 
             print(f"Time: {t} Saving init file...")
-            # romsInit.SALT = SAL_ROMS
-            romsInit.TEMP = TEM_ROMS
             romsInit.ZETA = SSH_ROMS
+            romsInit.SALT = SAL_ROMS
+            romsInit.TEMP = TEM_ROMS
+            romsInit.U = U_ROMS
+            romsInit.V = V_ROMS
             # romsInit.UBAR = UBAR
             # romsInit.VBAR = VBAR
-            # romsInit.U = U_ROMS
-            # romsInit.V = V_ROMS
             romsInit.write(t)
 
             print(f"Time: {t} Saving bry file...")
-            # romsBoundary.SALT = SAL_ROMS
-            # romsBoundary.TEMP = TEM_ROMS
-            # romsBoundary.ZETA = SSH_ROMS
+            romsBoundary.ZETA = SSH_ROMS
+            romsBoundary.SALT = SAL_ROMS
+            romsBoundary.TEMP = TEM_ROMS
+            romsBoundary.U = U_ROMS
+            romsBoundary.V = V_ROMS
             # romsBoundary.UBAR = UBAR
             # romsBoundary.VBAR = VBAR
-            # romsBoundary.U = U_ROMS
-            # romsBoundary.V = V_ROMS
-            # TODO: you can save bry only when vertical interpolation has been added
-            # romsBoundary.write(t)
+            romsBoundary.write(t)
 
         romsInit.close()
         romsBoundary.close()
