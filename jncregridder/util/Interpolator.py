@@ -40,14 +40,6 @@ def interp_horizontal(k, srcLAT, srcLON, srcZ, srcMASK, values, dstLAT, dstLON, 
 
 @njit
 def interp_vertical(dstSNDim, dstWEDim, srcZ, tSrc, sigma, tDst):
-    """
-    depthCopernicus = srcZ[:, 0, 0].filled(np.nan)
-    srcCopernicus = tSrc[:, j, i]
-    interpV = interp1d(depthCopernicus, srcCopernicus, kind='linear', fill_value="extrapolate")
-    depthSigma = sigma[:, j, i].filled(np.nan)
-    dstSigma = interpV(depthSigma)
-    tDst[:, j, i] = dstSigma
-    """
     for j in range(dstSNDim):
         for i in range(dstWEDim):
             depthCopernicus = srcZ[:, 0, 0]
@@ -113,4 +105,3 @@ class BilinearInterpolator3D(Interpolator):
         interp_vertical(self.dstSNDim, self.dstWEDim, self.srcZ.filled(np.nan), tSrc, self.sigma.filled(np.nan), tDst)
 
         return tDst
-

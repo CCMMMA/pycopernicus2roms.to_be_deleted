@@ -1,5 +1,6 @@
 import os
 import ephem
+import numpy as np
 
 from jncregridder.data.copernicus.Copernicus import CopernicusTem, CopernicusSal, CopernicusSSH, CopernicusCur
 from jncregridder.roms.ROMSBoundary import ROMSBoundary
@@ -175,13 +176,19 @@ class MyOcean2ROMS:
             print("Interpolating TEMP")
             TEM_ROMS = interpolator3DRho.interp(valuesTem, dataTem.FillValue)
 
-            print("Interpolating U")
-            U_ROMS = interpolator3DU.interp(valuesU, dataCur.FillValue)
-
             print("Interpolating V")
             V_ROMS = interpolator3DV.interp(valuesV, dataCur.FillValue)
 
-            # TODO: compute UBAR and VBAR
+            print("Interpolating U")
+            U_ROMS = interpolator3DU.interp(valuesU, dataCur.FillValue)
+
+            print("Calculating UBAR")
+            UBAR = np.ma.mean(U_ROMS, axis=0)
+            UBAR = np.ma.masked_where(MASKU != 1, UBAR)
+
+            print("Calculating VBAR")
+            VBAR = np.mean(V_ROMS, axis=0)
+            VBAR = np.ma.masked_where(MASKV != 1, VBAR)
 
             print(f"Time: {t} Saving init file...")
             romsInit.ZETA = SSH_ROMS
@@ -189,8 +196,8 @@ class MyOcean2ROMS:
             romsInit.TEMP = TEM_ROMS
             romsInit.U = U_ROMS
             romsInit.V = V_ROMS
-            # romsInit.UBAR = UBAR
-            # romsInit.VBAR = VBAR
+            romsInit.UBAR = UBAR
+            romsInit.VBAR = VBAR
             romsInit.write(t)
 
             print(f"Time: {t} Saving bry file...")
@@ -199,8 +206,8 @@ class MyOcean2ROMS:
             romsBoundary.TEMP = TEM_ROMS
             romsBoundary.U = U_ROMS
             romsBoundary.V = V_ROMS
-            # romsBoundary.UBAR = UBAR
-            # romsBoundary.VBAR = VBAR
+            romsBoundary.UBAR = UBAR
+            romsBoundary.VBAR = VBAR
             romsBoundary.write(t)
 
         romsInit.close()
@@ -210,7 +217,7 @@ class MyOcean2ROMS:
 def main():
     gridParh = "data/Campania_new.nc"
     dataPath = "data"
-    ncepDate = "20240215"
+    ncepDate = "20240226"
     initPath = "data/ini-d03.nc"
     boundaryPath = "data/bry-d03.nc"
 

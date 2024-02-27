@@ -389,7 +389,6 @@ class ROMSBoundary:
         self.zeta_south[time] = self.ZETA[0, :]
         self.zeta_north[time] = self.ZETA[-1, :]
 
-        """
         self.ubar_west[time] = self.UBAR[:, 0]
         self.ubar_east[time] = self.UBAR[:, -1]
         self.ubar_south[time] = self.UBAR[0, :]
@@ -399,7 +398,6 @@ class ROMSBoundary:
         self.vbar_east[time] = self.VBAR[:, -1]
         self.vbar_south[time] = self.VBAR[0, :]
         self.vbar_north[time] = self.VBAR[-1, :]
-        """
 
     def close(self):
         if self.ncfWritable:
