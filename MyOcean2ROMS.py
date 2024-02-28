@@ -1,6 +1,7 @@
 import os
 import ephem
 import numpy as np
+import argparse
 
 from jncregridder.data.copernicus.Copernicus import CopernicusTem, CopernicusSal, CopernicusSSH, CopernicusCur
 from jncregridder.roms.ROMSBoundary import ROMSBoundary
@@ -214,14 +215,21 @@ class MyOcean2ROMS:
         romsBoundary.close()
 
 
-def main():
-    gridParh = "data/Campania_new.nc"
-    dataPath = "data"
-    ncepDate = "20240226"
-    initPath = "data/ini-d03.nc"
-    boundaryPath = "data/bry-d03.nc"
+def parser():
+    parser = argparse.ArgumentParser(description="MyOcean2ROMS")
+    parser.add_argument("--gridPath", type=str, required=True, help="Path to grid data file")
+    parser.add_argument("--dataPath", type=str, required=True, help="Path to general data directory")
+    parser.add_argument("--ncepDate", type=str, required=True,help="Date for NCEP data")
+    parser.add_argument("--initPath", type=str, required=True, help="Path to store initial data file")
+    parser.add_argument("--boundaryPath", type=str, required=True, help="Path to store boundary data file")
+    return parser
 
-    MyOcean2ROMS(gridParh, dataPath, ncepDate, initPath, boundaryPath)
+
+def main():
+    arg_parser = parser()
+    args = arg_parser.parse_args()
+
+    MyOcean2ROMS(args.gridPath, args.dataPath, args.ncepDate, args.initPath, args.boundaryPath)
 
 
 if __name__ == '__main__':
