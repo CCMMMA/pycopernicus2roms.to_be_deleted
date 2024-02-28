@@ -35,16 +35,16 @@ class MyOcean2ROMS:
         # Path to the ROMS grid
         self.romsGridPath = gridPath
 
-        # Path to the MyOcean current data
+        # Path to the MyOcean current copernicus-data
         self.myOceanPathCur = os.path.join(dataPath, f"myoc_d00_{ncepDate}_cur.nc")
 
-        # Path to the MyOcean temperature data
+        # Path to the MyOcean temperature copernicus-data
         self.myOceanPathTem = os.path.join(dataPath, f"myoc_d00_{ncepDate}_tem.nc")
 
-        # Path to the MyOcean salinity data
+        # Path to the MyOcean salinity copernicus-data
         self.myOceanPathSal = os.path.join(dataPath, f"myoc_d00_{ncepDate}_sal.nc")
 
-        # Path to the MyOcean sea surface height data
+        # Path to the MyOcean sea surface height copernicus-data
         self.myOceanPathSSH = os.path.join(dataPath, f"myoc_d00_{ncepDate}_ssh.nc")
 
         # Path to the output init file
@@ -53,7 +53,7 @@ class MyOcean2ROMS:
         # Path to the output boundary file
         self.romsBoundaryPath = boundaryPath
 
-        # Open ROMS grid data
+        # Open ROMS grid copernicus-data
         romsGrid = ROMSGrid(gridPath)
 
         # Get dimension size
@@ -217,11 +217,11 @@ class MyOcean2ROMS:
 
 def parser():
     parser = argparse.ArgumentParser(description="MyOcean2ROMS")
-    parser.add_argument("--gridPath", type=str, required=True, help="Path to grid data file")
-    parser.add_argument("--dataPath", type=str, required=True, help="Path to general data directory")
-    parser.add_argument("--ncepDate", type=str, required=True,help="Date for NCEP data")
-    parser.add_argument("--initPath", type=str, required=True, help="Path to store initial data file")
-    parser.add_argument("--boundaryPath", type=str, required=True, help="Path to store boundary data file")
+    parser.add_argument("--gridPath", type=str, required=True, help="Path to grid copernicus-data file")
+    parser.add_argument("--dataPath", type=str, required=True, help="Path to general copernicus-data directory")
+    parser.add_argument("--ncepDate", type=str, required=True,help="Date for NCEP copernicus-data")
+    parser.add_argument("--initPath", type=str, required=True, help="Path to store initial copernicus-data file")
+    parser.add_argument("--boundaryPath", type=str, required=True, help="Path to store boundary copernicus-data file")
     return parser
 
 

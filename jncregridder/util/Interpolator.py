@@ -1,20 +1,28 @@
-from scipy.interpolate import griddata, interp1d
+from scipy.interpolate import griddata
 from concurrent.futures import ProcessPoolExecutor
+from numpy.ma.core import MaskedArray
 import multiprocessing
 from numba import njit
 import numpy as np
 
 
-def interp(srcLAT, srcLON, srcMASK, values, dstLAT, dstLON, fillValue):
-    lon_src_mesh, lat_src_mesh = np.meshgrid(srcLON, srcLAT)
+def gridInterp(srcLAT, srcLON, values, dstLAT, dstLON, fillValue):
+    if isinstance(values, MaskedArray):
+        values = values.filled(fill_value=np.nan)
 
-    valuesInterp = griddata(
-        (lat_src_mesh.flatten(), lon_src_mesh.flatten()),
-        values.filled(fill_value=np.nan).flatten(),
+    return griddata(
+        (srcLAT.flatten(), srcLON.flatten()),
+        values.flatten(),
         (dstLAT, dstLON),
         fill_value=fillValue,
         method="linear"
     )
+
+
+def interp(srcLAT, srcLON, srcMASK, values, dstLAT, dstLON, fillValue):
+    lon_src_mesh, lat_src_mesh = np.meshgrid(srcLON, srcLAT)
+
+    valuesInterp = gridInterp(lat_src_mesh, lon_src_mesh, values, dstLAT, dstLON, fillValue)
 
     indices = np.where(srcMASK == 0)
     valuesInterp[indices] = 1e37
@@ -62,6 +70,10 @@ class Interpolator:
 
     def interp(self, values, fillValue):
         interp_values = interp(self.srcLAT, self.srcLON, self.srcMASK, values, self.dstLAT, self.dstLON, fillValue)
+        return interp_values
+
+    def simpleInterp(self, values, fillValue):
+        interp_values = gridInterp(self.srcLAT, self.srcLON, values, self.dstLAT, self.dstLON, fillValue)
         return interp_values
 
 

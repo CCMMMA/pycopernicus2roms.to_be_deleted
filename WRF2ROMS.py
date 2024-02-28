@@ -20,7 +20,7 @@ class WRF2ROMS:
         # Open the ROMS Grid
         romsGrid = ROMSGrid(self.romsGridFilename)
 
-        # Open ROMS wind data
+        # Open ROMS wind copernicus-data
         romsWind = ROMSWind(self.romsForcingFilename, romsGrid)
 
         folder = os.path.abspath(self.wrfFilenameOrFilesPath)
@@ -31,22 +31,20 @@ class WRF2ROMS:
                 filepath = os.path.join(folder, filename)
                 if os.path.isfile(filepath) and filename.startswith("wrf"):
                     print("File", filepath)
-                    wrfData = WRFData(filepath, 1, self.interpLevels)
-                    if count == 0:
-                        print("Inizialization.")
-                        # romsWind.init(wrfData, timeOffset)
-                    # romsWind.add(wrfData, timeOffset)
+                    wrfData = WRFData(filepath, self.interpLevels)
+                    romsWind.add(wrfData, timeOffset)
                     count += 1
         else:
             print(self.wrfFilenameOrFilesPath)
-            wrfData = WRFData(self.wrfFilenameOrFilesPath, 1, self.interpLevels)
-            # romsWind.init(wrfData, timeOffset)
-            # romsWind.add(wrfData, timeOffset)
+            wrfData = WRFData(self.wrfFilenameOrFilesPath, self.interpLevels)
+            romsWind.add(wrfData, timeOffset)
+
+        romsWind.close()
 
 
 def parser():
     parser = argparse.ArgumentParser(description="WRF2ROMS")
-    parser.add_argument("--romsGridFilename", type=str, required=True, help="Path to grid data file")
+    parser.add_argument("--romsGridFilename", type=str, required=True, help="Path to grid copernicus-data file")
     parser.add_argument("--wrfFilename", type=str, required=True, help="Path to wrf file/files")
     parser.add_argument("--timeOffset", type=int, required=True, help="")
     parser.add_argument("--forcingFilename", type=str, required=True, help="")

@@ -1,10 +1,14 @@
 import netCDF4 as nc
 
+from jncregridder.util.Interpolator import BilinearInterpolator
+
 
 class ROMSWind:
     def __init__(self, url, romsGrid):
         self.url = url
         self.romsGrid = romsGrid
+        self.localTime = 0
+        self.times = []
 
         self.ncfWritable = nc.Dataset(url, 'w', format='NETCDF4_CLASSIC')
         self.ncfWritable.createDimension(self.romsGrid.dimEtaRho.name, len(self.romsGrid.dimEtaRho))
@@ -34,7 +38,6 @@ class ROMSWind:
         self.time.long_name = "atmospheric forcing time"
         self.time.units = "days since 1968-05-23 00:00:00 GMT"
         self.time.calendar = "gregorian"
-
 
         self.Pair = self.ncfWritable.createVariable('Pair', 'f4', ('ocean_time', 'eta_rho', 'xi_rho'))
         self.Pair.long_name = "Mean Sea Level Pressure"
@@ -131,4 +134,55 @@ class ROMSWind:
         self.svstr.time = "ocean_time"
         self.svstr.missing_value = 1e37
 
+        self.lon[:] = self.romsGrid.LONRHO
+        self.lat[:] = self.romsGrid.LATRHO
+        self.lon_u[:] = self.romsGrid.LONU
+        self.lat_u[:] = self.romsGrid.LATU
+        self.lon_v[:] = self.romsGrid.LONV
+        self.lat_v[:] = self.romsGrid.LATV
+
         print(f"{len(self.romsGrid.dimEtaRho)}, {len(self.romsGrid.dimXiRho)}")
+
+    def add(self, wrfData, wrfTimeOffset):
+        self.times.append(wrfData.dModDate)
+
+        for t in range(wrfTimeOffset, len(wrfData.dimTime)):
+            bilinearInterpolatorRho = BilinearInterpolator(wrfData.XLAT, wrfData.XLONG, self.romsGrid.LATRHO, self.romsGrid.LONRHO, self.romsGrid.MASKRHO)
+
+            print("Interpolating T2")
+            T2 = bilinearInterpolatorRho.simpleInterp(wrfData.T2[0], 1e37)
+
+            print("Interpolating SLP")
+            SLP = bilinearInterpolatorRho.simpleInterp(wrfData.SLP, 1e37)
+
+            print("Interpolating U10M")
+            U10M = bilinearInterpolatorRho.simpleInterp(wrfData.U10M, 1e37)
+
+            print("Interpolating V10M")
+            V10M = bilinearInterpolatorRho.simpleInterp(wrfData.V10M, 1e37)
+
+            print("Interpolating RH2")
+            RH2 = bilinearInterpolatorRho.simpleInterp(wrfData.RH2, 1e37)
+
+            print("Interpolating SWDOWN")
+            SWDOWN = bilinearInterpolatorRho.simpleInterp(wrfData.SWDOWN, 1e37)
+
+            print("Interpolating GLW")
+            GLW = bilinearInterpolatorRho.simpleInterp(wrfData.GLW, 1e37)
+
+            self.Uwind[self.localTime] = U10M
+            self.Vwind[self.localTime] = V10M
+            self.Tair[self.localTime] = T2
+            self.Pair[self.localTime] = SLP
+            self.Qair[self.localTime] = RH2
+            self.swrad[self.localTime] = SWDOWN
+            self.lwrad_down[self.localTime] = GLW
+
+            self.time[:] = self.times
+            self.ocean_time[:] = self.times
+
+            self.localTime += 1
+
+    def close(self):
+        if self.ncfWritable:
+            self.ncfWritable.close()
