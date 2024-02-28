@@ -15,7 +15,6 @@ class WRF2ROMS:
         self.wrfFilenameOrFilesPath = wrfFilename
         self.timeOffset = timeOffset
         self.romsForcingFilename = forcingFilename
-        self.interpLevels = [1000., 950., 900., 850., 800., 750., 700., 650., 600., 550., 500., 450., 400., 350., 300., 250., 200., 150., 100]
 
         # Open the ROMS Grid
         romsGrid = ROMSGrid(self.romsGridFilename)
@@ -26,17 +25,15 @@ class WRF2ROMS:
         folder = os.path.abspath(self.wrfFilenameOrFilesPath)
         if os.path.isdir(folder):
             listOfFiles = sorted(os.listdir(folder))
-            count = 0
             for filename in listOfFiles:
                 filepath = os.path.join(folder, filename)
                 if os.path.isfile(filepath) and filename.startswith("wrf"):
                     print("File", filepath)
-                    wrfData = WRFData(filepath, self.interpLevels)
+                    wrfData = WRFData(filepath)
                     romsWind.add(wrfData, timeOffset)
-                    count += 1
         else:
             print(self.wrfFilenameOrFilesPath)
-            wrfData = WRFData(self.wrfFilenameOrFilesPath, self.interpLevels)
+            wrfData = WRFData(self.wrfFilenameOrFilesPath)
             romsWind.add(wrfData, timeOffset)
 
         romsWind.close()

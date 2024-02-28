@@ -5,9 +5,8 @@ import jdcal
 
 
 class WRFData:
-    def __init__(self, url, interpLevels):
+    def __init__(self, url):
         self.url = url
-        self.interpLevels = interpLevels
 
         self.simStartDate = None
         self.dModDate = None
@@ -16,20 +15,17 @@ class WRFData:
         self.dimTime = self.ncDataset.dimensions.get("Time")
         self.timeDim = len(self.dimTime)
 
-        attrs = self.ncDataset.__dict__
-        for attr_name, attr_value in attrs.items():
-            if attr_name == "SIMULATION_START_DATE":
-                self.simStartDate = attr_value
-                year = int(self.simStartDate[0:4])
-                month = int(self.simStartDate[5:7])
-                day = int(self.simStartDate[8:10])
-                hour = int(self.simStartDate[11:13])
-                minute = int(self.simStartDate[14:16])
-                second = int(self.simStartDate[17:19])
+        self.datetimeStr = ''.join([x.decode() for x in self.ncDataset.variables["Times"][:][0]])
+        year = int(self.datetimeStr[0:4])
+        month = int(self.datetimeStr[5:7])
+        day = int(self.datetimeStr[8:10])
+        hour = int(self.datetimeStr[11:13])
+        minute = int(self.datetimeStr[14:16])
+        second = int(self.datetimeStr[17:19])
 
-                dDate = sum(jdcal.gcal2jd(year, month, day)) + hour / 24.0 + minute / 1440.0 + second / 86400.0
-                dModOffset = sum(jdcal.gcal2jd(1968, 5, 23))
-                self.dModDate = dDate - dModOffset
+        dDate = sum(jdcal.gcal2jd(year, month, day)) + hour / 24.0 + minute / 1440.0 + second / 86400.0
+        dModOffset = sum(jdcal.gcal2jd(1968, 5, 23))
+        self.dModDate = dDate - dModOffset
 
         self.XLAT = np.array(self.__loadWrf("XLAT"))
         self.XLONG = np.array(self.__loadWrf("XLONG"))
