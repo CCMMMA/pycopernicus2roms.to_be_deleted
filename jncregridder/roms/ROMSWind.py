@@ -1,14 +1,33 @@
 import netCDF4 as nc
+import os
+import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
 
 from jncregridder.util.Interpolator import BilinearInterpolator
+from jncregridder.wrf.WRFData import WRFData
 
 
 class ROMSWind:
-    def __init__(self, url, romsGrid):
+    def __init__(self, url, romsGrid, wrfFilenameOrFilesPath):
         self.url = url
         self.romsGrid = romsGrid
-        self.localTime = 0
+        self.totalTime = 1
         self.times = []
+        self.wrfFilenameOrFilesPath = wrfFilenameOrFilesPath
+
+        folder = os.path.abspath(wrfFilenameOrFilesPath)
+        if os.path.isdir(folder):
+            listOfFiles = sorted(os.listdir(folder))
+            files = []
+            for filename in listOfFiles:
+                filepath = os.path.join(folder, filename)
+                if os.path.isfile(filepath) and filename.startswith("wrf"):
+                    files.append(filepath)
+
+            self.wrfFilenameOrFilesPath = files
+            self.totalTime = len(files)
+        else:
+            self.wrfFilenameOrFilesPath = [self.wrfFilenameOrFilesPath]
 
         self.ncfWritable = nc.Dataset(url, 'w', format='NETCDF4_CLASSIC')
         self.ncfWritable.createDimension(self.romsGrid.dimEtaRho.name, len(self.romsGrid.dimEtaRho))
@@ -18,7 +37,7 @@ class ROMSWind:
         self.ncfWritable.createDimension(self.romsGrid.dimEtaV.name, len(self.romsGrid.dimEtaV))
         self.ncfWritable.createDimension(self.romsGrid.dimXiV.name, len(self.romsGrid.dimXiV))
 
-        self.ncfWritable.createDimension('ocean_time', None)
+        self.ncfWritable.createDimension('ocean_time', self.totalTime)
 
         self.lat = self.ncfWritable.createVariable('lat', 'f8', ('eta_rho', 'xi_rho'))
         self.lat.long_name = "latitude of RHO-points"
@@ -143,45 +162,63 @@ class ROMSWind:
 
         print(f"{len(self.romsGrid.dimEtaRho)}, {len(self.romsGrid.dimXiRho)}")
 
-    def add(self, wrfData, wrfTimeOffset):
+    def make(self):
+        num_processors = multiprocessing.cpu_count()
+        with ThreadPoolExecutor(max_workers=num_processors) as executor:
+            futures = [executor.submit(self.__process_wrf_file, filepath) for filepath in self.wrfFilenameOrFilesPath]
+
+            for k, future in enumerate(futures):
+                res = future.result()
+
+                self.Uwind[k] = res["U10M"]
+                self.Vwind[k] = res["V10M"]
+                self.Tair[k] = res["T2"]
+                self.Pair[k] = res["SLP"]
+                self.Qair[k] = res["RH2"]
+                self.swrad[k] = res["SWDOWN"]
+                self.lwrad_down[k] = res["GLW"]
+
+                self.time[:] = self.times
+                self.ocean_time[:] = self.times
+
+    def __process_wrf_file(self, filepath):
+        wrfData = WRFData(filepath)
         self.times.append(wrfData.dModDate)
 
-        for t in range(wrfTimeOffset, len(wrfData.dimTime)):
-            bilinearInterpolatorRho = BilinearInterpolator(wrfData.XLAT, wrfData.XLONG, self.romsGrid.LATRHO, self.romsGrid.LONRHO, self.romsGrid.MASKRHO)
+        bilinearInterpolatorRho = BilinearInterpolator(wrfData.XLAT, wrfData.XLONG, self.romsGrid.LATRHO, self.romsGrid.LONRHO, self.romsGrid.MASKRHO)
 
-            print("Interpolating T2")
-            T2 = bilinearInterpolatorRho.simpleInterp(wrfData.T2[0], 1e37)
+        print("Interpolating T2")
+        T2 = bilinearInterpolatorRho.simpleInterp(wrfData.T2[0], 1e37)
 
-            print("Interpolating SLP")
-            SLP = bilinearInterpolatorRho.simpleInterp(wrfData.SLP, 1e37)
+        print("Interpolating SLP")
+        SLP = bilinearInterpolatorRho.simpleInterp(wrfData.SLP, 1e37)
 
-            print("Interpolating U10M")
-            U10M = bilinearInterpolatorRho.simpleInterp(wrfData.U10M, 1e37)
+        print("Interpolating U10M")
+        U10M = bilinearInterpolatorRho.simpleInterp(wrfData.U10M, 1e37)
 
-            print("Interpolating V10M")
-            V10M = bilinearInterpolatorRho.simpleInterp(wrfData.V10M, 1e37)
+        print("Interpolating V10M")
+        V10M = bilinearInterpolatorRho.simpleInterp(wrfData.V10M, 1e37)
 
-            print("Interpolating RH2")
-            RH2 = bilinearInterpolatorRho.simpleInterp(wrfData.RH2, 1e37)
+        print("Interpolating RH2")
+        RH2 = bilinearInterpolatorRho.simpleInterp(wrfData.RH2, 1e37)
 
-            print("Interpolating SWDOWN")
-            SWDOWN = bilinearInterpolatorRho.simpleInterp(wrfData.SWDOWN, 1e37)
+        print("Interpolating SWDOWN")
+        SWDOWN = bilinearInterpolatorRho.simpleInterp(wrfData.SWDOWN, 1e37)
 
-            print("Interpolating GLW")
-            GLW = bilinearInterpolatorRho.simpleInterp(wrfData.GLW, 1e37)
+        print("Interpolating GLW")
+        GLW = bilinearInterpolatorRho.simpleInterp(wrfData.GLW, 1e37)
 
-            self.Uwind[self.localTime] = U10M
-            self.Vwind[self.localTime] = V10M
-            self.Tair[self.localTime] = T2
-            self.Pair[self.localTime] = SLP
-            self.Qair[self.localTime] = RH2
-            self.swrad[self.localTime] = SWDOWN
-            self.lwrad_down[self.localTime] = GLW
+        result = {
+            "T2": T2,
+            "SLP": SLP,
+            "U10M": U10M,
+            "V10M": V10M,
+            "RH2": RH2,
+            "SWDOWN": SWDOWN,
+            "GLW": GLW
+        }
 
-            self.time[:] = self.times
-            self.ocean_time[:] = self.times
-
-            self.localTime += 1
+        return result
 
     def close(self):
         if self.ncfWritable:
