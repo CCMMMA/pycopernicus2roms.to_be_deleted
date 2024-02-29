@@ -29,16 +29,16 @@ class WRFData:
 
         self.XLAT = np.array(self.__loadWrf("XLAT"))
         self.XLONG = np.array(self.__loadWrf("XLONG"))
-        self.T2 = self.__load("T2")-273.15
-        self.SLP = self.__loadWrf("slp")
-        self.UVMET10 = self.__loadWrf("uvmet10")
-        self.U10M = self.UVMET10[0]
-        self.V10M = self.UVMET10[1]
-        self.RH2 = self.__loadWrf("rh2")
-        self.CLFR = self.__loadWrf("cloudfrac")
+        self.T2 = np.array(self.__load("T2")-273.15)
+        self.SLP = np.array(self.__loadWrf("slp"))
+        self.UVMET10 = np.array(self.__loadWrf("uvmet10"))
+        self.U10M = np.array(self.UVMET10[0])
+        self.V10M = np.array(self.UVMET10[1])
+        self.RH2 =np.array( self.__loadWrf("rh2"))
+        self.CLFR = np.array(self.__loadWrf("cloudfrac"))
         self.CLF = np.maximum(self.CLFR[0], self.CLFR[1])
-        self.SWDOWN = self.__load("SWDOWN")
-        self.GLW = self.__load("GLW")
+        self.SWDOWN = np.array(self.__load("SWDOWN"))
+        self.GLW = np.array(self.__load("GLW"))
 
     def __loadWrf(self, variable_name):
         try:
@@ -55,3 +55,18 @@ class WRFData:
             raise Exception(f"Variable {variable_name} not found in the dataset.")
         except Exception as e:
             raise Exception(f"Error loading variable {variable_name}: {str(e)}")
+
+    def getData(self):
+        return {
+            "path": self.url,
+            "dModDate": self.dModDate,
+            "XLAT": self.XLAT,
+            "XLONG": self.XLONG,
+            "U10M": self.U10M,
+            "V10M": self.V10M,
+            "T2": self.T2[:],
+            "SLP": self.SLP[:],
+            "RH2": self.RH2[:],
+            "SWDOWN": self.SWDOWN[:],
+            "GLW": self.GLW[:]
+        }

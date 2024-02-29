@@ -1,10 +1,50 @@
 import netCDF4 as nc
 import os
 import multiprocessing
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 from jncregridder.util.Interpolator import BilinearInterpolator
 from jncregridder.wrf.WRFData import WRFData
+
+
+def process_wrf_file(wrfData, LATRHO, LONRHO, MASKRHO):
+    print(f"Computing {wrfData['path']} ...")
+
+    bilinearInterpolatorRho = BilinearInterpolator(wrfData["XLAT"], wrfData["XLONG"], LATRHO, LONRHO, MASKRHO)
+
+    # print("Interpolating T2")
+    T2 = bilinearInterpolatorRho.simpleInterp(wrfData["T2"][0], 1e37)
+
+    # print("Interpolating SLP")
+    SLP = bilinearInterpolatorRho.simpleInterp(wrfData["SLP"], 1e37)
+
+    # print("Interpolating U10M")
+    U10M = bilinearInterpolatorRho.simpleInterp(wrfData["U10M"], 1e37)
+
+    # print("Interpolating V10M")
+    V10M = bilinearInterpolatorRho.simpleInterp(wrfData["V10M"], 1e37)
+
+    # print("Interpolating RH2")
+    RH2 = bilinearInterpolatorRho.simpleInterp(wrfData["RH2"], 1e37)
+
+    # print("Interpolating SWDOWN")
+    SWDOWN = bilinearInterpolatorRho.simpleInterp(wrfData["SWDOWN"], 1e37)
+
+    # print("Interpolating GLW")
+    GLW = bilinearInterpolatorRho.simpleInterp(wrfData["GLW"], 1e37)
+
+    result = {
+        "T2": T2,
+        "SLP": SLP,
+        "U10M": U10M,
+        "V10M": V10M,
+        "RH2": RH2,
+        "SWDOWN": SWDOWN,
+        "GLW": GLW,
+        "date": wrfData['dModDate']
+    }
+
+    return result
 
 
 class ROMSWind:
@@ -12,22 +52,23 @@ class ROMSWind:
         self.url = url
         self.romsGrid = romsGrid
         self.totalTime = 1
-        self.times = []
-        self.wrfFilenameOrFilesPath = wrfFilenameOrFilesPath
+        self.wrfFiles = []
 
         folder = os.path.abspath(wrfFilenameOrFilesPath)
         if os.path.isdir(folder):
             listOfFiles = sorted(os.listdir(folder))
-            files = []
             for filename in listOfFiles:
                 filepath = os.path.join(folder, filename)
                 if os.path.isfile(filepath) and filename.startswith("wrf"):
-                    files.append(filepath)
+                    wrfData = WRFData(filepath)
+                    wrfFile = wrfData.getData()
+                    self.wrfFiles.append(wrfFile)
 
-            self.wrfFilenameOrFilesPath = files
-            self.totalTime = len(files)
+            self.totalTime = len(self.wrfFiles)
         else:
-            self.wrfFilenameOrFilesPath = [self.wrfFilenameOrFilesPath]
+            wrfData = WRFData(wrfFilenameOrFilesPath)
+            wrfFile = wrfData.getData()
+            self.wrfFiles.append(wrfFile)
 
         self.ncfWritable = nc.Dataset(url, 'w', format='NETCDF4_CLASSIC')
         self.ncfWritable.createDimension(self.romsGrid.dimEtaRho.name, len(self.romsGrid.dimEtaRho))
@@ -160,12 +201,11 @@ class ROMSWind:
         self.lon_v[:] = self.romsGrid.LONV
         self.lat_v[:] = self.romsGrid.LATV
 
-        print(f"{len(self.romsGrid.dimEtaRho)}, {len(self.romsGrid.dimXiRho)}")
-
     def make(self):
         num_processors = multiprocessing.cpu_count()
-        with ThreadPoolExecutor(max_workers=num_processors) as executor:
-            futures = [executor.submit(self.__process_wrf_file, filepath) for filepath in self.wrfFilenameOrFilesPath]
+        with ProcessPoolExecutor(max_workers=num_processors) as executor:
+            futures = [executor.submit(process_wrf_file, wrfFile, self.romsGrid.LATRHO, self.romsGrid.LONRHO,
+                                       self.romsGrid.MASKRHO) for wrfFile in self.wrfFiles]
 
             for k, future in enumerate(futures):
                 res = future.result()
@@ -177,48 +217,8 @@ class ROMSWind:
                 self.Qair[k] = res["RH2"]
                 self.swrad[k] = res["SWDOWN"]
                 self.lwrad_down[k] = res["GLW"]
-
-                self.time[:] = self.times
-                self.ocean_time[:] = self.times
-
-    def __process_wrf_file(self, filepath):
-        wrfData = WRFData(filepath)
-        self.times.append(wrfData.dModDate)
-
-        bilinearInterpolatorRho = BilinearInterpolator(wrfData.XLAT, wrfData.XLONG, self.romsGrid.LATRHO, self.romsGrid.LONRHO, self.romsGrid.MASKRHO)
-
-        print("Interpolating T2")
-        T2 = bilinearInterpolatorRho.simpleInterp(wrfData.T2[0], 1e37)
-
-        print("Interpolating SLP")
-        SLP = bilinearInterpolatorRho.simpleInterp(wrfData.SLP, 1e37)
-
-        print("Interpolating U10M")
-        U10M = bilinearInterpolatorRho.simpleInterp(wrfData.U10M, 1e37)
-
-        print("Interpolating V10M")
-        V10M = bilinearInterpolatorRho.simpleInterp(wrfData.V10M, 1e37)
-
-        print("Interpolating RH2")
-        RH2 = bilinearInterpolatorRho.simpleInterp(wrfData.RH2, 1e37)
-
-        print("Interpolating SWDOWN")
-        SWDOWN = bilinearInterpolatorRho.simpleInterp(wrfData.SWDOWN, 1e37)
-
-        print("Interpolating GLW")
-        GLW = bilinearInterpolatorRho.simpleInterp(wrfData.GLW, 1e37)
-
-        result = {
-            "T2": T2,
-            "SLP": SLP,
-            "U10M": U10M,
-            "V10M": V10M,
-            "RH2": RH2,
-            "SWDOWN": SWDOWN,
-            "GLW": GLW
-        }
-
-        return result
+                self.time[k] = res["date"]
+                self.ocean_time[k] = res["date"]
 
     def close(self):
         if self.ncfWritable:
