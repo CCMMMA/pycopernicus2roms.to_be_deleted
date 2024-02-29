@@ -29,7 +29,7 @@ class WRFData:
 
         self.XLAT = np.array(self.__loadWrf("XLAT"))
         self.XLONG = np.array(self.__loadWrf("XLONG"))
-        self.T2 = self.__load("T2")#-273.15
+        self.T2 = self.__load("T2")-273.15
         self.SLP = self.__loadWrf("slp")
         self.UVMET10 = self.__loadWrf("uvmet10")
         self.U10M = self.UVMET10[0]
