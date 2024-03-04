@@ -7,12 +7,6 @@ class ROMSGrid:
         self.url = url
         self.ncDataset = Dataset(url)
         self.no_data = 1e37
-
-        self.theta_s = 3
-        self.theta_b = 0
-        self.N = 30
-        self.hc_threshold = 5.0
-        self.hc = np.nan
         self.zeta = 0
 
         # Find dimensions
@@ -35,34 +29,10 @@ class ROMSGrid:
         self.etaV = len(self.dimEtaV)
         self.xiV = len(self.dimXiV)
 
-        # Calculate s_rho
-        ds = 1.0 / self.N
-        lev = np.arange(1, self.N + 1) - 0.5
-        self.s_rho = (lev - self.N) * ds
-
-        # Calculate cs_r
-        self.cs_r = np.zeros_like(self.s_rho)
-        if self.theta_s > 0:
-            p_theta = np.sinh(self.theta_s * self.s_rho) * (1 / np.sinh(self.theta_s))
-            r_theta = np.tanh(self.theta_s * (self.s_rho + 0.5)) / (2.0 * np.tanh(0.5 * self.theta_s) - 0.5)
-            self.cs_r = (1.0 - self.theta_b) * p_theta + self.theta_b * r_theta
-        else:
-            self.cs_r = self.s_rho
-
-        # Calculate s_w
-        self.s_w = np.linspace(-1, 0, num=self.N + 1)
-
-        # Calculate cs_w
-        self.cs_w = np.zeros_like(self.s_w)
-        if self.theta_s > 0:
-            cff1 = 1 / np.sinh(self.theta_s)
-            cff2 = 0.5 / np.tanh(0.5 * self.theta_s)
-            for i in range(1, len(self.s_w)):
-                self.cs_w[i] = (1 - self.theta_b) * cff1 * np.sinh(self.theta_s * self.s_w[i]) + \
-                               self.theta_b * (cff2 * np.tanh(self.theta_s * (self.s_w[i] + 0.5)) - 0.5)
-        else:
-            self.cs_w = self.s_w
-
+        self.s_rho = self.__load__('s_rho')
+        self.cs_r = self.__load__('Cs_r')
+        self.s_w = self.__load__('s_w')
+        self.cs_w = self.__load__('Cs_w')
         self.ANGLE = self.__load__('angle')
         self.LATRHO = self.__load__('lat_rho')
         self.LONRHO = self.__load__('lon_rho')
