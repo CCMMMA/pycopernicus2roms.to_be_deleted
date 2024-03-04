@@ -33,6 +33,8 @@ class ROMSGrid:
         self.cs_r = self.__load__('Cs_r')
         self.s_w = self.__load__('s_w')
         self.cs_w = self.__load__('Cs_w')
+        self.theta_s = self.__load__('theta_s')
+        self.theta_b = self.__load__('theta_b')
         self.ANGLE = self.__load__('angle')
         self.LATRHO = self.__load__('lat_rho')
         self.LONRHO = self.__load__('lon_rho')
