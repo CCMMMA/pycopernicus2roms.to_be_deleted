@@ -34,7 +34,7 @@ class WRFData:
         self.UVMET10 = np.array(self.__loadWrf("uvmet10"))
         self.U10M = np.array(self.UVMET10[0])
         self.V10M = np.array(self.UVMET10[1])
-        self.RH2 =np.array( self.__loadWrf("rh2"))
+        self.RH2 = np.array(self.__loadWrf("rh2"))
         self.CLFR = np.array(self.__loadWrf("cloudfrac"))
         self.CLF = np.maximum(self.CLFR[0], self.CLFR[1])
         self.SWDOWN = np.array(self.__load("SWDOWN"))
