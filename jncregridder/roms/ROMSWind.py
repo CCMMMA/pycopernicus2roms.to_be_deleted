@@ -2,7 +2,6 @@ import netCDF4 as nc
 import os
 import multiprocessing
 import numpy as np
-from scipy.interpolate import interp2d
 from concurrent.futures import ProcessPoolExecutor
 
 from jncregridder.util.Interpolator import BilinearInterpolator
@@ -16,37 +15,32 @@ def calcStress(u10mMatrix, v10mMatrix, ust, angleMatrix, slpMatrix, t2mMatrix):
     rotV10m = v10mMatrix * np.cos(angleMatrix) - u10mMatrix * np.sin(angleMatrix)
 
     aRotUV10m = np.arctan2(-rotV10m, -rotU10m + 1e-8)
-    aUV10m = np.arctan2(-u10mMatrix, -(v10mMatrix + 1e-8))
-    aDelta = aUV10m - aRotUV10m
-
     rotUV10m = np.sqrt(rotU10m ** 2 + rotV10m ** 2)
-    UV10m = np.sqrt(u10mMatrix ** 2 + v10mMatrix ** 2)
-
-    delta = np.abs(rotUV10m - UV10m)
-    delta_ok = delta <= 1e-10
-
     rhoAir = slpMatrix * 100 / (287.058 * (t2mMatrix + 273.15))
-    dcU = np.where(np.logical_or(delta_ok, aDelta < angleMatrix - 1e10, aDelta > angleMatrix + 1e10), 1.2875 / 1000,
-                   np.nan)
 
-    dcU = np.where(ust == 999.9, np.where(rotUV10m > 7.5, (0.8 + 0.065 * rotUV10m) / 1000, dcU), dcU)
-    dcU = np.where(ust == 888.8, np.where(rotUV10m < 3, 2.17 / 1000,
-                                          np.where(rotUV10m <= 6,
-                                                   (0.29 + 3.1 / rotUV10m + 7.7 / (rotUV10m ** 2)) / 1000,
-                                                   np.where(rotUV10m <= 26, (0.60 + 0.070 * rotUV10m) / 1000,
-                                                            2.42 / 1000))),
-                   dcU)
+    condition_ust_999 = (ust == 999.9)
+    condition_ust_888 = (ust == 888.8)
+
+    dcU = np.where(condition_ust_999 | condition_ust_888, ust, np.nan)
+
+    if condition_ust_999:
+        dcU_ust_999 = np.where(condition_ust_999 & (rotUV10m > 7.5), (0.8 + 0.065 * rotUV10m) / 1000, 0)
+        dcU = np.where(condition_ust_999, dcU_ust_999, dcU)
+
+    elif condition_ust_888:
+        dcU_lt_3 = np.where(rotUV10m < 3, 2.17 / 1000, 0)
+        dcU_between_3_and_6 = np.where((3 <= rotUV10m) & (rotUV10m <= 6),
+                                       (0.29 + 3.1 / rotUV10m + 7.7 / (rotUV10m * rotUV10m)) / 1000, 0)
+        dcU_between_6_and_26 = np.where((6 < rotUV10m) & (rotUV10m <= 26), (0.60 + 0.070 * rotUV10m) / 1000, 0)
+        dcU_else = np.where(
+            ~((rotUV10m < 3) | ((3 <= rotUV10m) & (rotUV10m <= 6)) | ((6 < rotUV10m) & (rotUV10m <= 26))), 2.42 / 1000,
+            0)
+
+        dcU = dcU_lt_3 + dcU_between_3_and_6 + dcU_between_6_and_26 + dcU_else
 
     result = np.zeros((etaU, xiU, 2), dtype=np.float32)
-    result_ok = np.logical_and(~np.isnan(dcU), u10mMatrix != 1e37, v10mMatrix != 1e37)
-
-    result[..., 0] = -rhoAir * (dcU ** 2) * np.sin(aRotUV10m)
-    result[..., 1] = -rhoAir * (dcU ** 2) * np.cos(aRotUV10m)
-
-    aStress = np.arctan(result[..., 1] / (result[..., 0] + 1e-8))
-
-    aStress_ok = np.logical_and(result_ok, np.logical_and(aStress >= aRotUV10m - 1e10, aStress <= angleMatrix + 1e10))
-    result[..., :] = np.where(np.expand_dims(aStress_ok, axis=-1), result, 1e37)
+    result[..., 0] = -(rhoAir * (dcU ** 2) * np.sin(aRotUV10m))*1000
+    result[..., 1] = -(rhoAir * (dcU ** 2) * np.cos(aRotUV10m))*1000
 
     return result[..., :]
 
@@ -56,25 +50,25 @@ def process_wrf_file(wrfData, LATRHO, LONRHO, MASKRHO):
 
     bilinearInterpolatorRho = BilinearInterpolator(wrfData["XLAT"], wrfData["XLONG"], LATRHO, LONRHO, MASKRHO)
 
-    print("Interpolating T2")
+    # print("Interpolating T2")
     T2 = bilinearInterpolatorRho.simpleInterp(wrfData["T2"][0], 1e37)
 
-    print("Interpolating SLP")
+    # print("Interpolating SLP")
     SLP = bilinearInterpolatorRho.simpleInterp(wrfData["SLP"], 1e37)
 
-    print("Interpolating U10M")
+    # print("Interpolating U10M")
     U10M = bilinearInterpolatorRho.simpleInterp(wrfData["U10M"], 1e37)
 
-    print("Interpolating V10M")
+    # print("Interpolating V10M")
     V10M = bilinearInterpolatorRho.simpleInterp(wrfData["V10M"], 1e37)
 
-    print("Interpolating RH2")
+    # print("Interpolating RH2")
     RH2 = bilinearInterpolatorRho.simpleInterp(wrfData["RH2"], 1e37)
 
-    print("Interpolating SWDOWN")
+    # print("Interpolating SWDOWN")
     SWDOWN = bilinearInterpolatorRho.simpleInterp(wrfData["SWDOWN"], 1e37)
 
-    print("Interpolating GLW")
+    # print("Interpolating GLW")
     GLW = bilinearInterpolatorRho.simpleInterp(wrfData["GLW"], 1e37)
 
     result = {
@@ -254,6 +248,9 @@ class ROMSWind:
             for k, future in enumerate(futures):
                 res = future.result()
 
+                self.time[k] = res["date"]
+                self.ocean_time[k] = res["date"]
+
                 self.Uwind[k] = res["U10M"]
                 self.Vwind[k] = res["V10M"]
                 self.Tair[k] = res["T2"]
@@ -264,17 +261,14 @@ class ROMSWind:
 
                 self.romsGrid.ANGLE[:] = 0
                 stress = calcStress(res["U10M"], res["V10M"], 888.8, self.romsGrid.ANGLE, res["SLP"], res["T2"])
-                stressU_interp = interp2d(np.array([row[0] for row in self.romsGrid.LATRHO[:]]), self.romsGrid.LONRHO[0], stress[..., 0].flatten(), kind='linear')
-                stressU = stressU_interp(self.romsGrid.LONU[0], np.array([row[0] for row in self.romsGrid.LATU[:]]))
-                stressV_interp = interp2d(np.array([row[0] for row in self.romsGrid.LATRHO[:]]), self.romsGrid.LONRHO[0], stress[..., 1].flatten(), kind='linear')
-                stressV = stressV_interp(self.romsGrid.LONV[0], np.array([row[0] for row in self.romsGrid.LATV[:]]))
-
-                print(stressU)
+                interpolator2DU = BilinearInterpolator(self.lat[:], self.lon[:], self.lat_u[:], self.lon_u[:], self.romsGrid.MASKU, method="nearest")
+                # print("Interpolating stressU")
+                stressU = interpolator2DU.simpleInterp(stress[..., 0], 1e37)
+                interpolator2DV = BilinearInterpolator(self.lat[:], self.lon[:], self.lat_v[:], self.lon_v[:], self.romsGrid.MASKV, method="nearest")
+                # print("Interpolating stressV")
+                stressV = interpolator2DV.simpleInterp(stress[..., 1], 1e37)
                 self.sustr[k] = stressU
                 self.svstr[k] = stressV
-
-                self.time[k] = res["date"]
-                self.ocean_time[k] = res["date"]
 
     def close(self):
         if self.ncfWritable:

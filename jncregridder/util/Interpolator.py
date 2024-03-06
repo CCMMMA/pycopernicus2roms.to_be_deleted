@@ -6,7 +6,7 @@ from numba import njit
 import numpy as np
 
 
-def gridInterp(srcLAT, srcLON, values, dstLAT, dstLON, fillValue):
+def gridInterp(srcLAT, srcLON, values, dstLAT, dstLON, fillValue, method):
     if isinstance(values, MaskedArray):
         values = values.filled(fill_value=np.nan)
 
@@ -15,7 +15,7 @@ def gridInterp(srcLAT, srcLON, values, dstLAT, dstLON, fillValue):
         values.flatten(),
         (dstLAT, dstLON),
         fill_value=fillValue,
-        method="linear"
+        method=method
     )
 
 
@@ -58,12 +58,13 @@ def interp_vertical(dstSNDim, dstWEDim, srcZ, tSrc, sigma, tDst):
 
 
 class Interpolator:
-    def __init__(self, srcLAT, srcLON, dstLAT, dstLON, srcMASK):
+    def __init__(self, srcLAT, srcLON, dstLAT, dstLON, srcMASK, method="linear"):
         self.srcLAT = srcLAT
         self.srcLON = srcLON
         self.dstLAT = dstLAT
         self.dstLON = dstLON
         self.srcMASK = srcMASK
+        self.method = method
 
         self.dstSNDim = len(dstLAT)
         self.dstWEDim = len(dstLAT[0])
@@ -73,13 +74,13 @@ class Interpolator:
         return interp_values
 
     def simpleInterp(self, values, fillValue):
-        interp_values = gridInterp(self.srcLAT, self.srcLON, values, self.dstLAT, self.dstLON, fillValue)
+        interp_values = gridInterp(self.srcLAT, self.srcLON, values, self.dstLAT, self.dstLON, fillValue, self.method)
         return interp_values
 
 
 class BilinearInterpolator(Interpolator):
-    def __init__(self, srcLAT, srcLON, dstLAT, dstLON, srcMASK):
-        super().__init__(srcLAT, srcLON, dstLAT, dstLON, srcMASK)
+    def __init__(self, srcLAT, srcLON, dstLAT, dstLON, srcMASK, method="linear"):
+        super().__init__(srcLAT, srcLON, dstLAT, dstLON, srcMASK, method)
 
 
 class BilinearInterpolator3D(Interpolator):
