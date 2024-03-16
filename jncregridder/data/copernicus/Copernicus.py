@@ -65,6 +65,6 @@ class CopernicusSal(CopernicusBase):
 class CopernicusTem(CopernicusBase):
     def __init__(self, url):
         super().__init__(url)
-        self.ZOS = self.__load__("thetao")
+        self.THETAO = self.__load__("thetao")
         self.BOTTOMT = self.__load__("bottomT")
         self.FillValue = 1e20

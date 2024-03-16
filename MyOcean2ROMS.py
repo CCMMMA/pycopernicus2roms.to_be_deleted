@@ -152,7 +152,7 @@ class MyOcean2ROMS:
             valuesV = dataCur.VO[t]
 
             # 3D temperature
-            valuesTem = dataTem.ZOS[t]
+            valuesTem = dataTem.THETAO[t]
 
             # 3D salinity
             valuesSal = dataSal.SO[t]
