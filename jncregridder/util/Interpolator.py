@@ -42,8 +42,8 @@ def interp(srcLAT, srcLON, srcMASK, values, dstLAT, dstLON, fillValue, method="l
     interpolated_values = griddata((rows, cols), values, (interp_rows, interp_cols), fill_value=fillValue, method='nearest')
     valuesInterp[np.isnan(valuesInterp)] = interpolated_values
 
-    indices = np.where(valuesInterp == 1e37)
-    valuesInterp[indices] = np.nan
+    # indices = np.where(valuesInterp == 1e37)
+    # valuesInterp[indices] = np.nan
 
     return valuesInterp
 
@@ -84,7 +84,7 @@ def interp_vertical(dstSNDim, dstWEDim, srcZ, tSrc, sigma, srcMask, indexes, tDs
                 dstSigma = f_interp(depthSigma)
                 tDst[:, j, i] = dstSigma
             else:
-                tDst[:, j, i] = np.nan
+                tDst[:, j, i] = 1e37
 
 
 class Interpolator:
