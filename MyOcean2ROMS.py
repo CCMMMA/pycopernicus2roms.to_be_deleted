@@ -82,7 +82,7 @@ class MyOcean2ROMS:
         LONRHO = romsGrid.LONRHO
 
         # Z at rho/sigma pints
-        romsZ = romsGrid.H
+        romsZ = romsGrid.Z
 
         # LAT,LON at u points
         LATU = romsGrid.LATU
@@ -105,7 +105,7 @@ class MyOcean2ROMS:
         print("LATV:", LATV.shape)
         print("LONV:", LONV.shape)
         print("ANGLE:", ANGLE.shape)
-        print("H:", romsZ.shape)
+        print("Z:", romsZ.shape)
 
         dataTem = CopernicusTem(self.myOceanPathTem)
         dataSal = CopernicusSal(self.myOceanPathSal)
@@ -113,8 +113,11 @@ class MyOcean2ROMS:
         dataCur = CopernicusCur(self.myOceanPathCur)
 
         # LON at XY points
-        LATXY = dataCur.LAT
-        LONXY = dataCur.LON
+        # LATXY = dataCur.LAT
+        # LONXY = dataCur.LON
+        LONXY, LATXY = np.meshgrid(dataCur.LON, dataCur.LAT)
+        LATXY = LATXY.filled(np.nan)
+        LONXY = LONXY.filled(np.nan)
         myOceanZ = dataCur.Z
 
         # Set the number of forcing time steps
